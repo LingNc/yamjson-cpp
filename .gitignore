@@ -1,0 +1,13 @@
+*
+!*/
+
+!**/Makefile
+!LICENSE
+!README.md
+!.gitignore
+
+!src/*.cpp
+!include/*.h
+!tools/*.py
+
+!example/*.cpp
