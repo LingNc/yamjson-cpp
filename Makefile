@@ -1,11 +1,15 @@
 # yamjson Makefile - 用于构建单头文件版本
 
+# 版本信息
+VERSION = 1.0.0
+
 # 路径定义
 HEADER_DIR = include
 SRC_DIR = src
 DIST_DIR = dist
 EXAMPLE_DIR = example
 TOOLS_DIR = tools
+SCRIPTS_DIR = $(TOOLS_DIR)/scripts
 
 # 源文件
 HEADER = $(HEADER_DIR)/yamjson.h
@@ -18,6 +22,10 @@ $(shell mkdir -p $(DIST_DIR))
 
 # 确保构建脚本可执行
 $(shell chmod +x $(BUILD_SCRIPT))
+$(shell if [ -d "$(SCRIPTS_DIR)" ]; then chmod +x $(SCRIPTS_DIR)/*.sh; fi)
+
+# 导出版本号给构建脚本
+export YAMJSON_VERSION=$(VERSION)
 
 # 默认目标: help
 default : help
@@ -25,7 +33,7 @@ default : help
 # 显示帮助信息
 .PHONY : help
 help:
-	@echo "yamjson 构建工具帮助"
+	@echo "yamjson 构建工具帮助 (v$(VERSION))"
 	@echo "===================="
 	@echo "使用命令:"
 	@echo "  make              - 显示此帮助信息"
@@ -43,15 +51,9 @@ help:
 	@echo "或者直接使用构建脚本 (更多选项):"
 	@echo "  ./$(BUILD_SCRIPT) [选项]"
 
-
 # 构建所有
 .PHONY : all
-all :
-	merged
-	static
-	static-debug
-	shared
-	shared-debug
+all: merged static static-debug shared shared-debug
 
 # 生成单头文件
 .PHONY : merged

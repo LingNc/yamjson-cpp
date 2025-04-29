@@ -9,7 +9,7 @@
 
 !src/*.cpp
 !include/*.h*
-!tools/*.*
+!tools/*.sh
+!tools/scripts/*.sh
 !module/*
-
 !example/*.cpp
