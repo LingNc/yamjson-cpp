@@ -5,9 +5,11 @@
 !LICENSE
 !README.md
 !.gitignore
+!yamjson*workspace*
 
 !src/*.cpp
-!include/*.h
-!tools/*.py
+!include/*.h*
+!tools/*.*
+!module/*
 
 !example/*.cpp
