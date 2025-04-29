@@ -1,0 +1,3 @@
+[submodule "module/yaml-cpp-builder"]
+	path = module/yaml-cpp-builder
+	url = https://github.com/LingNc/yaml-cpp-builder.git
