@@ -3,7 +3,7 @@
 
 !**/Makefile
 !LICENSE
-!README.md
+!./README.md
 !.gitignore
 !yamjson*workspace*
 
