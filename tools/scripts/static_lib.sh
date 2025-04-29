@@ -3,6 +3,8 @@
 
 # 导入公共函数和变量
 source "$(dirname "$0")/common.sh"
+# 直接导入合并头文件模块
+source "$(dirname "$0")/merged_lib_header.sh"
 
 # 函数: 生成静态库版本
 generate_static_lib() {
@@ -30,6 +32,15 @@ generate_static_lib() {
     local build_dir="$DIST_DIR/temp"
     mkdir -p "$build_dir"
 
+    # 生成合并的头文件
+    log_info "生成合并头文件..."
+    # 直接调用函数而不是通过子Shell
+    generate_merged_lib_header
+    if [ $? -ne 0 ]; then
+        log_error "生成合并头文件失败!"
+        return 1
+    fi
+
     # 编译源文件
     log_info "编译源文件..."
     g++ -std=c++11 $compiler_flags -I"$HEADER_DIR" -I"$EXT_DIR" -c "$SOURCE" -o "$build_dir/yamjson.o"
@@ -38,11 +49,9 @@ generate_static_lib() {
     log_info "创建静态库..."
     ar rcs "$dist_lib_dir/$lib_name" "$build_dir/yamjson.o"
 
-    # 复制头文件到发布目录
+    # 复制头文件到发布目录 (只保留合并的头文件和原始的yamjson.h作为备份)
     log_info "复制头文件..."
-    cp "$HEADER" "$dist_include_dir/"
-    cp "$JSON_LIB" "$dist_include_dir/"
-    cp "$EXT_DIR/yaml.hpp" "$dist_include_dir/" 2>/dev/null || cp "$YAML_LIB_HEADER" "$dist_include_dir/"
+    cp "$HEADER" "$dist_include_dir/yamjson_original.h"  # 保留原始头文件作为备份
 
     # 链接到主仓库lib目录
     ln -sf "$dist_lib_dir/$lib_name" "$LIB_DIR/$lib_name"
@@ -52,6 +61,7 @@ generate_static_lib() {
     rm -rf "$build_dir"
 
     log_success "静态库版本已生成：$dist_lib_dir/$lib_name"
+    log_success "合并头文件已生成：$dist_include_dir/yamjson_lib.h"
 
     # 创建测试脚本
     if [ "$debug" = "debug" ]; then
