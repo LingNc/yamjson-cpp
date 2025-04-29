@@ -16,6 +16,7 @@ export HEADER_DIR="$ROOT_DIR/include"
 export SRC_DIR="$ROOT_DIR/src"
 export DIST_DIR="$ROOT_DIR/dist"
 export EXT_DIR="$ROOT_DIR/ext"
+export LIB_DIR="$ROOT_DIR/lib"
 export MODULE_DIR="$ROOT_DIR/module"
 export YAML_MODULE="$MODULE_DIR/yaml-cpp-builder"
 
@@ -34,6 +35,8 @@ export YAML_SHARED_DEBUG_LIB="$YAML_MODULE/lib/libyaml-debug.so"
 # 创建必要的目录
 mkdir -p "$DIST_DIR/include"
 mkdir -p "$DIST_DIR/lib"
+mkdir -p "$LIB_DIR"
+mkdir -p "$EXT_DIR"
 
 # 函数: 显示彩色消息
 log_info() {
@@ -50,6 +53,78 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}错误: $1${NC}"
+}
+
+# 函数: 链接yaml-cpp单头文件到ext目录（用于单头文件构建）
+link_yaml_single_header() {
+    log_info "链接yaml-cpp单头文件到ext目录..."
+
+    # 创建到yaml-cpp.hpp的链接
+    if [ -f "$YAML_SINGLE_HEADER" ]; then
+        ln -sf "$YAML_SINGLE_HEADER" "$EXT_DIR/yaml-cpp.hpp"
+        log_success "已链接 yaml-cpp.hpp 到 ext 目录"
+    else
+        log_warning "找不到 yaml-cpp.hpp，无法创建链接"
+    fi
+}
+
+# 函数: 链接yaml.hpp头文件到ext目录（用于库构建）
+link_yaml_lib_header() {
+    log_info "链接yaml.hpp头文件到ext目录..."
+
+    # 创建到yaml.hpp的链接
+    if [ -f "$YAML_LIB_HEADER" ]; then
+        ln -sf "$YAML_LIB_HEADER" "$EXT_DIR/yaml.hpp"
+        log_success "已链接 yaml.hpp 到 ext 目录"
+    else
+        log_warning "找不到 yaml.hpp，无法创建链接"
+    fi
+}
+
+# 函数: 链接yaml-cpp库文件到lib目录
+link_yaml_libs() {
+    local debug=$1
+    local lib_type=${2:-"static"}  # 默认为静态库，可选值: static 或 shared
+
+    log_info "链接yaml-cpp库文件到lib目录..."
+
+    if [ "$debug" = "debug" ]; then
+        # 链接调试版静态库
+        if [ -f "$YAML_STATIC_DEBUG_LIB" ]; then
+            ln -sf "$YAML_STATIC_DEBUG_LIB" "$LIB_DIR/libyaml-debug.a"
+            log_success "已链接 libyaml-debug.a 到 lib 目录"
+        else
+            log_warning "找不到 libyaml-debug.a，无法创建链接"
+        fi
+
+        # 只有在共享库模式下才链接 .so 文件
+        if [ "$lib_type" = "shared" ]; then
+            if [ -f "$YAML_SHARED_DEBUG_LIB" ]; then
+                ln -sf "$YAML_SHARED_DEBUG_LIB" "$LIB_DIR/libyaml-debug.so"
+                log_success "已链接 libyaml-debug.so 到 lib 目录"
+            else
+                log_warning "找不到 libyaml-debug.so，无法创建链接"
+            fi
+        fi
+    else
+        # 链接发布版静态库
+        if [ -f "$YAML_STATIC_LIB" ]; then
+            ln -sf "$YAML_STATIC_LIB" "$LIB_DIR/libyaml.a"
+            log_success "已链接 libyaml.a 到 lib 目录"
+        else
+            log_warning "找不到 libyaml.a，无法创建链接"
+        fi
+
+        # 只有在共享库模式下才链接 .so 文件
+        if [ "$lib_type" = "shared" ]; then
+            if [ -f "$YAML_SHARED_LIB" ]; then
+                ln -sf "$YAML_SHARED_LIB" "$LIB_DIR/libyaml.so"
+                log_success "已链接 libyaml.so 到 lib 目录"
+            else
+                log_warning "找不到 libyaml.so，无法创建链接"
+            fi
+        fi
+    fi
 }
 
 # 函数: 检查依赖
@@ -95,6 +170,8 @@ ensure_yaml_single_header() {
                 return 1
             else
                 log_success "yaml-cpp.hpp 已成功构建"
+                # 只链接单头文件版本
+                link_yaml_single_header
             fi
         else
             log_error "需要 yaml-cpp.hpp 才能继续!"
@@ -102,6 +179,8 @@ ensure_yaml_single_header() {
         fi
     else
         log_success "yaml-cpp.hpp 已找到"
+        # 只链接单头文件版本
+        link_yaml_single_header
     fi
 
     return 0
@@ -134,6 +213,9 @@ ensure_yaml_static_lib() {
                 return 1
             else
                 log_success "yaml-cpp 静态库已成功构建"
+                # 链接yaml.hpp头文件和库文件
+                link_yaml_lib_header
+                link_yaml_libs $debug "static"
             fi
         else
             log_error "需要 yaml-cpp 静态库才能继续!"
@@ -141,6 +223,9 @@ ensure_yaml_static_lib() {
         fi
     else
         log_success "yaml-cpp 静态库 ($lib_name) 已找到"
+        # 链接yaml.hpp头文件和库文件
+        link_yaml_lib_header
+        link_yaml_libs $debug "static"
     fi
 
     return 0
@@ -173,6 +258,9 @@ ensure_yaml_shared_lib() {
                 return 1
             else
                 log_success "yaml-cpp 动态库已成功构建"
+                # 链接yaml.hpp头文件和库文件
+                link_yaml_lib_header
+                link_yaml_libs $debug "shared"
             fi
         else
             log_error "需要 yaml-cpp 动态库才能继续!"
@@ -180,6 +268,9 @@ ensure_yaml_shared_lib() {
         fi
     else
         log_success "yaml-cpp 动态库 ($lib_name) 已找到"
+        # 链接yaml.hpp头文件和库文件
+        link_yaml_lib_header
+        link_yaml_libs $debug "shared"
     fi
 
     return 0
