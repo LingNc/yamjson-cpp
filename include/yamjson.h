@@ -17,33 +17,78 @@ namespace yamjson{
     std::string json_to_yaml(const nlohmann::json &j);
     YAML::Node json_to_yaml_node(const nlohmann::json &j);
 
-    // 保留注释的YAML转换
-    class YamlDocument{
+    // 核心类：YamJSON - 统一的YAML/JSON处理接口
+    class YamJSON{
     private:
         std::string original_yaml_;  // 保存原始YAML文本，包含注释
         nlohmann::json json_data_;   // 保存转换后的JSON数据
+        std::string file_path_;      // 文件路径，用于读写操作
 
     public:
         // 构造函数
-        explicit YamlDocument(const std::string &yaml_content);
-        YamlDocument()=default;
+        YamJSON();
+        explicit YamJSON(const std::string &yaml_content);
+        explicit YamJSON(const nlohmann::json &json_data);
 
-        // 获取JSON数据
-        const nlohmann::json &json() const{ return json_data_; }
-        nlohmann::json &json(){ return json_data_; }
+        // 工厂方法
+        static YamJSON load(const std::string &file_path);  // 从文件加载
+        static YamJSON parse(const std::string &yaml_content);  // 从字符串解析
 
-        // 获取原始YAML，包含注释
+        // 转换方法
+        nlohmann::json to_json() const{ return json_data_; }  // 转换为JSON
+        std::string to_yaml() const;  // 转换为YAML字符串（保留注释）
+        YAML::Node to_yaml_node() const;  // 转换为YAML::Node对象
+
+        // 从JSON/YAML转换 - 使用重载函数替代多个命名函数
+        static YamJSON from_json(const nlohmann::json &json_data);
+        static YamJSON from_yaml(const std::string &yaml_content);  // 从YAML字符串创建
+        static YamJSON from_yaml(const YAML::Node &node);  // 从YAML::Node创建，使用重载
+
+        // 美观输出，默认缩进为2
+        std::string dump(int indent=2,bool as_json=false) const;
+
+        // 获取内部数据
+        const nlohmann::json &get_json() const{ return json_data_; }
+        nlohmann::json &get_json(){ return json_data_; }
         const std::string &original_yaml() const{ return original_yaml_; }
 
-        // 应用JSON修改并生成新的YAML（保留注释）
-        std::string dump() const;
+        // 保存方法
+        bool save() const;  // 保存到当前文件
+        bool save_to(const std::string &file_path) const;  // 保存到指定文件
 
-        // 修改特定路径的值，返回是否成功修改
+        // 文件路径操作
+        void set_file_path(const std::string &file_path){ file_path_=file_path; }
+        const std::string &get_file_path() const{ return file_path_; }
+
+        // 重新加载
+        bool reload();
+
+        // 路径更新
         bool update_value(const std::vector<std::string> &path,const nlohmann::json &value);
+
+        // 操作符重载
+        template<typename T>
+        auto operator[](T &&key) -> decltype(std::declval<nlohmann::json>()[std::forward<T>(key)]){
+            return json_data_[std::forward<T>(key)];
+        }
+
+        template<typename T>
+        auto operator[](T &&key) const -> decltype(std::declval<const nlohmann::json>()[std::forward<T>(key)]){
+            return json_data_[std::forward<T>(key)];
+        }
+
+        // 赋值操作符
+        YamJSON &operator=(const nlohmann::json &json_data);
+        YamJSON &operator=(const std::string &yaml_content);
+        YamJSON &operator=(const YAML::Node &node);
     };
+
+    // 为 YamJSON 提供序列化支持
+    void to_json(nlohmann::json &j,const YamJSON &yam);
+    void from_json(const nlohmann::json &j,YamJSON &yam);
 }
 
-// 以下是与 nlohmann::json 集成的函数，基于 ADL 机制
+// 简化的ADL集成接口
 namespace nlohmann{
     // 从 YAML 字符串解析
     inline void from_yaml(const std::string &yaml_str,json &j){
@@ -61,73 +106,4 @@ namespace nlohmann{
     inline std::string to_yaml(const json &j){
         return yamjson::json_to_yaml(j);
     }
-}
-
-// 为与 YAML 相关的类型提供 ADL 序列化器
-namespace nlohmann{
-    // 单独的命名空间，存放 YAML 相关的类型
-    namespace yaml{
-        // 包装类，表示一个 YAML 文档（保留注释版本）
-        class document{
-        private:
-            std::shared_ptr<yamjson::YamlDocument> doc_;
-            std::string file_path_; // 文件路径，用于读写操作
-
-        public:
-            // 从 YAML 字符串构造
-            explicit document(const std::string &yaml_content);
-
-            // 从文件路径构造
-            static document from_file(const std::string &file_path);
-
-            // 默认构造函数
-            document();
-
-            // 获取JSON数据
-            nlohmann::json &get_json();
-            const nlohmann::json &get_json() const;
-
-            // 生成YAML（保留注释）
-            std::string dump() const;
-
-            // 修改特定路径的值
-            bool update(const std::vector<std::string> &path,const nlohmann::json &value);
-
-            // 快捷访问接口，保持与原始接口兼容
-            std::string content() const;
-
-            // 重载[]运算符，用于访问JSON数据
-            template<typename T>
-            auto operator[](T &&key) -> decltype(get_json()[std::forward<T>(key)]){
-                return get_json()[std::forward<T>(key)];
-            }
-
-            template<typename T>
-            auto operator[](T &&key) const -> decltype(get_json()[std::forward<T>(key)]){
-                return get_json()[std::forward<T>(key)];
-            }
-
-            // 重载=运算符，用于赋值JSON数据
-            document &operator=(const nlohmann::json &j);
-
-            // 将YAML内容写入文件
-            bool save() const;
-
-            // 将YAML内容写入指定文件
-            bool save_to(const std::string &file_path) const;
-
-            // 设置文件路径
-            void set_file_path(const std::string &file_path);
-
-            // 获取文件路径
-            const std::string &get_file_path() const;
-
-            // 重新从文件加载
-            bool reload();
-        };
-    }
-
-    // 为 YAML 文档类型特化 ADL 序列化器
-    template<>
-    struct adl_serializer<yaml::document>;
 }

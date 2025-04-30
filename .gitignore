@@ -6,6 +6,9 @@
 !./README.md
 !.gitignore
 !yamjson*workspace*
+!CMakeList*
+!build.sh
+
 
 !src/*.cpp
 !include/*.h*
